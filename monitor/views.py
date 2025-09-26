@@ -2,10 +2,15 @@ from django.shortcuts import render
 from django.http import HttpResponse
 
 from monitor.forms import MyImageForm
+from monitor.models import MyImage
 
 # Create your views here.
 def home(request):
-    return HttpResponse("Hello, this is the home page of the monitor app.")
+    latest_image = MyImage.objects.last()
+    if latest_image:
+        img_path = latest_image.image.url
+
+    return render(request, 'home.html', {'title': 'Sistema de vigilancia distribuido', 'img_path': img_path})
 
 def upload(request):
     if request.method == 'POST':
