@@ -43,5 +43,7 @@ RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-# Default command (development): start Django dev server. Replace with uvicorn/gunicorn in production.
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENV GUNICORN_WORKER_CLASS=uvicorn.workers.UvicornWorker
+
+# Run Gunicorn with Uvicorn workers. Tune GUNICORN_WORKERS for your environment.
+CMD ["sh", "-c", "gunicorn capstoneproject.asgi:application -w ${GUNICORN_WORKERS} -k ${GUNICORN_WORKER_CLASS} -b 0.0.0.0:8000 --access-logfile - --error-logfile -"]

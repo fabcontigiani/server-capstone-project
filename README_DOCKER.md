@@ -28,9 +28,8 @@ docker compose up --build
 Notes & next steps
 ------------------
 - The provided `CMD` runs `manage.py runserver` for convenience. For production,
-  replace the `CMD` in `Dockerfile` with a proper ASGI server (e.g. `uvicorn` or
-  `gunicorn` + `uvicorn.workers.UvicornWorker`) and tune settings (workers, timeouts).
-- Consider using named images for `web` and `bot` (or multi-stage targets) to avoid
+ The image runs `gunicorn` with `uvicorn` workers by default. You can tune
+ the number of workers with the `GUNICORN_WORKERS` environment variable in
+ `docker-compose.yml` or `.env`.
   rebuilding the whole image twice.
-- You may want to add a separate service for background tasks (Celery/RQ) if you
   decide to send notifications on upload asynchronously.
