@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 def run_inference(image_path: str) -> dict[str, any]:
     """Envia la imagen a la API de detección de animales."""
-    files = {"image": ("bear.jpg", open(image_path, "rb"), "image/jpeg")}
+    files = {"image": ("image.jpg", open(image_path, "rb"), "image/jpeg")}
     data = {"country": "ARG", "threshold": 0.2}
     headers = {"Authorization": os.environ.get("ANIMAL_DETECT_API_KEY", "")}
     response = requests.post(
@@ -53,4 +53,4 @@ def process_image(instance: MyImage) -> None:
     instance.metadata = inference
     instance.save(update_fields=['processed_image', 'metadata'])
 
-    print("Inference result:", inference)
+    # print("Inference result:", inference)
