@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,10 +25,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG')
+DEBUG = True
+
+# ALLOWED_HOSTS = ['fabcontigiani.uno', '127.0.0.1', 'localhost']
 
 # Hosts
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS').split(',')
+_allowed = os.getenv('DJANGO_ALLOWED_HOSTS')
+ALLOWED_HOSTS = _allowed.split(',') if _allowed else ['127.0.0.1', 'localhost']
 
 # Application definition
 
@@ -128,14 +132,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# Always use a leading slash in URLs
+STATIC_URL = '/static/'
 
+# Include project-level and app-level static folders so templates resolve assets
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'monitor/static'),
+    os.path.join(BASE_DIR, 'static'),
+    os.path.join(BASE_DIR, 'monitor', 'static'),
 ]
 
 # Where `collectstatic` will collect static files for production
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# In development, Django can serve static files; in production use a proper server
 
 # Media files (User uploads)
 MEDIA_URL = '/media/'
