@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    image: server-capstone-project:web
+    env_file: .env.sample
+    ports:
+      - "8000:8000"
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    depends_on:
+      - db
+    # The image entrypoint will run migrations and collectstatic before executing the default command
+
+  bot:
+    build: .
+    image: server-capstone-project:bot
+    env_file: .env.sample
+    # The image entrypoint will run migrations and collectstatic before executing this command
+    command: ["python", "manage.py", "run_telegram_bot", "--token", "${TELEGRAM_BOT_TOKEN:-}"]
+    volumes:
+      - media_volume:/app/media
+    depends_on:
+      - web
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-capstone}
+      POSTGRES_USER: ${POSTGRES_USER:-capstone}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-capstone}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  static_volume:
+  media_volume:
+  db_data:
