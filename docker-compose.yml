@@ -23,7 +23,7 @@ services:
     # The image entrypoint will run migrations and collectstatic before executing this command
     command: ["python", "manage.py", "run_telegram_bot", "--token", "${TELEGRAM_BOT_TOKEN:-}"]
     volumes:
-      - media_volume:/app/media
+      - ./media:/app/media
     depends_on:
       - web
 
