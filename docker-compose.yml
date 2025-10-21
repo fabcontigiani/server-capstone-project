@@ -6,7 +6,7 @@ services:
     image: server-capstone-project:web
     env_file: .env
     ports:
-      - "8000:8000"
+      - "80:8000"
     volumes:
       # Mount project-level static for development so changes reflect inside container
       - ./static:/app/static
