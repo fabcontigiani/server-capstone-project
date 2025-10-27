@@ -66,6 +66,39 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.exception("Failed to send last image: %s", exc)
         await update.message.reply_text("Failed to send the image.")
 
+async def send_processed_image(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the most recently processed image to chat"""
+
+    # Find latest original and processed image
+    latest = await sync_to_async(lambda: MyImage.objects.order_by('-created_at').first())()
+    if not latest:
+        await update.message.reply_text("No images have been uploaded yet.")
+        return
+
+    # ensure file exists and send
+    img_path = latest.image.path
+    processed_img_path = latest.processed_image.path
+    if not os.path.exists(img_path) and not os.path.exists(processed_img_path):
+        await update.message.reply_text("Latest image file is missing on the server.")
+        return
+
+    try:
+        # open file per-send to avoid stream exhaustion
+        with open(img_path, 'rb') as f:
+            await update.message.reply_photo(photo=InputFile(f), caption=f"Last image uploaded at {latest.created_at}")
+    except Exception as exc:  # pragma: no cover - best-effort send
+        logger.exception("Failed to send last image: %s", exc)
+        await update.message.reply_text("Failed to send the image.")
+
+    if processed_img_path and os.path.exists(processed_img_path):
+        try:
+            with open(processed_img_path, 'rb') as f:
+                await update.message.reply_photo(photo=InputFile(f), caption=f"Last processed image uploaded at {latest.created_at}")
+        except Exception as exc:  # pragma: no cover - best-effort send
+            logger.exception("Failed to send last processed image: %s", exc)
+            await update.message.reply_text("Failed to send the processed image.")
+    else:
+        await update.message.reply_text("Processed image is not yet available.")
 
 def create_application(token: Optional[str] = None):
     """Build and return a telegram Application instance.
@@ -79,6 +112,7 @@ def create_application(token: Optional[str] = None):
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("last", last))
+    app.add_handler(CommandHandler("last_processed", send_processed_image))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     return app
 

@@ -9,11 +9,12 @@ from monitor.service import process_image
 
 # Create your views here.
 def home(request):
-    # Unprocess image
-    last_five_items = MyImage.objects.order_by('-created_at')[:4]
-    img_paths = set([item.image.url for item in last_five_items if os.path.exists(item.image.path)])
+    # Get last images with their processed versions
+    last_items = MyImage.objects.order_by('-created_at')[:4]
+    # Filter only items where the original image exists
+    image_pairs = [item for item in last_items if os.path.exists(item.image.path)]
 
-    return render(request, 'home.html', {'title': 'Sistema de vigilancia distribuido', 'img_paths': img_paths})
+    return render(request, 'home.html', {'title': 'Sistema de vigilancia distribuido', 'image_pairs': image_pairs})
 
 def upload(request):
     if request.method == 'POST':

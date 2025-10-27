@@ -11,11 +11,35 @@
     <h1>{{ title }}</h1>
 
     <div class="grid-container">
-        {% for path in img_paths %}
-            <div class="grid-item">
-                <img src="{{ path }}" alt="Imagen">
-                <div class="grid-item-text">
-                    Texto para imagen
+        {% for image_obj in image_pairs %}
+            <div class="pair-container">
+                <div class="image-box">
+                    <div class="image-label">Original</div>
+                    <img src="{{ image_obj.image.url }}" alt="Imagen Original">
+                    <div class="image-info">
+                        {{ image_obj.created_at|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+                <div class="image-box">
+                    <div class="image-label">Procesada</div>
+                    {% if image_obj.processed_image %}
+                        <img src="{{ image_obj.processed_image.url }}" alt="Imagen Procesada">
+                        {% if image_obj.metadata %}
+                            <div class="image-info">
+                                {% if image_obj.metadata.detections %}
+                                    Detecciones: {{ image_obj.metadata.detections }}
+                                {% else %}
+                                    Procesada
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="image-info">Procesada</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="no-image">
+                            <p>En procesamiento...</p>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         {% endfor %}
