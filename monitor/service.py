@@ -3,8 +3,6 @@ from monitor.models import MyImage
 import os, io
 from PIL import Image, ImageDraw, ImageFont
 
-# from telegram_bot.bot import send_processed_image
-
 def run_inference(image_path: str) -> dict[str, any]:
     """Envia la imagen a la API de detección de animales."""
     files = {"image": ("image.jpg", open(image_path, "rb"), "image/jpeg")}
@@ -54,7 +52,3 @@ def process_image(instance: MyImage) -> None:
     instance.processed_image.save(filename, content=io.BytesIO(rendered), save=False)
     instance.metadata = inference
     instance.save(update_fields=['processed_image', 'metadata'])
-
-    # send_processed_image()
-
-    # print("Inference result:", inference)

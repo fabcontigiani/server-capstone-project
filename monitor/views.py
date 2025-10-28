@@ -3,12 +3,16 @@ import os
 from django.shortcuts import render
 from django.http import HttpResponse
 
-from monitor.forms import MyImageForm
 from monitor.models import MyImage
+from monitor.models import MacTelegramRelation
 
 from monitor.service import process_image
 
 from django.views.decorators.http import require_http_methods
+
+from telegram_bot.bot import send_processed_image
+
+from asgiref.sync import async_to_sync
 
 # Create your views here.
 def home(request):
@@ -30,11 +34,24 @@ def upload(request):
         return HttpResponse("Invalid MAC address.")
     
     try:
+        # Save MyImage instance
         image = MyImage.objects.create(
             mac_address=mac_address,
             image=request.FILES["image"],
         )
 
-        return HttpResponse("Image uploaded successfully.")
+        # Process image (blocking/synchronous)
+        process_image(image)
+
+        # Find ID of Telegram chat to notify
+        try:
+            relation = MacTelegramRelation.objects.get(mac_address=mac_address)
+            telegram_chat_id = relation.telegram_chat_id
+            async_to_sync(send_processed_image)(telegram_chat_id, image.image.path, image.processed_image.path)
+        except MacTelegramRelation.DoesNotExist:
+            return HttpResponse("No Telegram chat registered for this MAC address.")
+
+
+        return HttpResponse("Image uploaded and processed successfully.")
     except Exception as e:
-        return HttpResponse("Error uploading image.")
+        return HttpResponse("Error uploading or processing image.")

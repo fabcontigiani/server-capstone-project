@@ -4,7 +4,7 @@ import os
 import logging
 from typing import Optional
 
-from telegram import Update, InputFile
+from telegram import Update, InputFile, Bot
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from telegram.ext import MessageHandler, filters
 from asgiref.sync import sync_to_async
@@ -66,6 +66,23 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as exc:  # pragma: no cover - best-effort send
         logger.exception("Failed to send last image: %s", exc)
         await update.message.reply_text("Failed to send the image.")
+
+
+# Send images to especific chat ID
+async def send_processed_image(telegram_chat_id: int, original_image_path: str, processed_image_path: str) -> None:
+    """Send original and processed images to the specified Telegram chat ID."""
+    
+    bot = Bot(token=os.environ.get("TELEGRAM_BOT_TOKEN"))
+    
+    try:
+        with open(original_image_path, 'rb') as orig_file:
+            await bot.send_photo(chat_id=telegram_chat_id, photo=InputFile(orig_file), caption="Original Image")
+
+        with open(processed_image_path, 'rb') as proc_file:
+            await bot.send_photo(chat_id=telegram_chat_id, photo=InputFile(proc_file), caption="Processed Image")
+
+    except Exception as e:
+        logger.error("Failed to send images: %s", e)
 
 async def register_mac(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     """Register MAC address to the user chat ID."""
