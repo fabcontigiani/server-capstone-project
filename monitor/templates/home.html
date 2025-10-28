@@ -1,49 +1,50 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-    <link rel="stylesheet" href="{% static 'home.css' %}">
+    <link rel="stylesheet" href="{% static 'monitor/home.css' %}">
 </head>
+
 <body>
     <h1>{{ title }}</h1>
-
     <div class="grid-container">
-        {% for image_obj in image_pairs %}
-            <div class="pair-container">
-                <div class="image-box">
-                    <div class="image-label">Original</div>
-                    <img src="{{ image_obj.image.url }}" alt="Imagen Original">
-                    <div class="image-info">
-                        {{ image_obj.created_at|date:"d/m/Y H:i" }}
-                    </div>
+        {% for entry in image_entries %}
+        <div class="pair-container">
+            <div class="image-box">
+                <div class="image-label">Original</div>
+                <img src="{{ entry.image.image.url }}" alt="Imagen Original">
+                <div class="image-info">
+                    {{ entry.created_at|date:"d/m/Y H:i" }}
                 </div>
-                <div class="image-box">
-                    <div class="image-label">Procesada</div>
-                    {% if image_obj.processed_image %}
-                        <img src="{{ image_obj.processed_image.url }}" alt="Imagen Procesada">
-                        {% if image_obj.metadata %}
-                            <div class="image-info">
-                                {% if image_obj.metadata.detections %}
-                                    Detecciones: {{ image_obj.metadata.detections }}
-                                {% else %}
-                                    Procesada
-                                {% endif %}
-                            </div>
-                        {% else %}
-                            <div class="image-info">Procesada</div>
-                        {% endif %}
-                    {% else %}
-                        <div class="no-image">
-                            <p>En procesamiento...</p>
-                        </div>
-                    {% endif %}
-                </div>
+                <div class="node-info">Nodo</div>
             </div>
+            <div class="image-box">
+                <div class="image-label">Procesada</div>
+                <img src="{{ entry.image.processed_image.url }}" alt="Imagen Procesada">
+                <div class="image-info">
+                    {{ entry.created_at|date:"d/m/Y H:i" }}
+                </div>
+                {% if entry.annotations %}
+                <div class="metadata">
+                    <div class="metadata-title">Detections</div>
+                    <ul class="metadata-list">
+                        {% for ann in entry.annotations %}
+                        <li class="metadata-item">
+                            <span class="metadata-label">{{ ann.label|default:"unknown" }}</span>:
+                            <span class="metadata-score">{% if ann.score %}{{ ann.score|floatformat:2 }}{% else %}0.00{% endif %}%</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
         {% endfor %}
     </div>
-
 </body>
+
 </html>

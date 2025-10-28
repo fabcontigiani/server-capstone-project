@@ -16,8 +16,22 @@ from asgiref.sync import async_to_sync
 def home(request):
     # Show only 4 most recent images not processed
     last_items = MyImage.objects.order_by('-created_at')[:4]
+    # Prepare template-friendly entries including annotations from metadata
+    image_entries = []
+    for img in last_items:
+        md = img.metadata or {}
+        annotations = md.get('annotations', [])
+        image_entries.append({
+            'image': img,
+            'annotations': annotations,
+            'created_at': img.created_at,
+        })
 
-    return render(request, 'home.html', {'title': 'Sistema de vigilancia distribuido', 'image_pairs': last_items})
+    return render(request, 'home.html', {
+        'title': 'Sistema de vigilancia distribuido',
+        'image_pairs': last_items,
+        'image_entries': image_entries,
+    })
 
 @require_http_methods(["POST"])
 def upload(request):
