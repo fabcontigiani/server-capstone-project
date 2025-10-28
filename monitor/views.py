@@ -1,5 +1,3 @@
-import logging
-import os
 from django.shortcuts import render
 from django.http import HttpResponse
 
@@ -43,14 +41,19 @@ def upload(request):
         # Process image (blocking/synchronous)
         process_image(image)
 
+        # Get metadata after processing to send trough Telegram bot
+        metadata = image.metadata
+
+        # Get datetime of image creation
+        created_at = image.created_at
+
         # Find ID of Telegram chat to notify
         try:
             relation = MacTelegramRelation.objects.get(mac_address=mac_address)
             telegram_chat_id = relation.telegram_chat_id
-            async_to_sync(send_processed_image)(telegram_chat_id, image.image.path, image.processed_image.path)
+            async_to_sync(send_processed_image)(telegram_chat_id, image.image.path, image.processed_image.path, metadata, created_at)
         except MacTelegramRelation.DoesNotExist:
             return HttpResponse("No Telegram chat registered for this MAC address.")
-
 
         return HttpResponse("Image uploaded and processed successfully.")
     except Exception as e:

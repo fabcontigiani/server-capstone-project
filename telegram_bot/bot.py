@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import os
 import logging
 from typing import Optional
@@ -69,7 +70,7 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # Send images to especific chat ID
-async def send_processed_image(telegram_chat_id: int, original_image_path: str, processed_image_path: str) -> None:
+async def send_processed_image(telegram_chat_id: int, original_image_path: str, processed_image_path: str, metadata: dict[str, any], created_at: datetime) -> None:
     """Send original and processed images to the specified Telegram chat ID."""
     
     bot = Bot(token=os.environ.get("TELEGRAM_BOT_TOKEN"))
@@ -80,6 +81,18 @@ async def send_processed_image(telegram_chat_id: int, original_image_path: str, 
 
         with open(processed_image_path, 'rb') as proc_file:
             await bot.send_photo(chat_id=telegram_chat_id, photo=InputFile(proc_file), caption="Processed Image")
+
+        # Send metadata as a message
+        metadata_message = "Detections:\n"
+        for ann in metadata.get("annotations", []):
+            label = ann.get('label', 'unknown')
+            score = ann.get('score', 0.0)
+            metadata_message += f"- {label}: {score:.2%}\n"
+        await bot.send_message(chat_id=telegram_chat_id, text=metadata_message)
+
+        # Send creation time format to dd-mm-YYYY HH:MM:SS
+        created_at_str = created_at.strftime("%d-%m-%Y %H:%M:%S")
+        await bot.send_message(chat_id=telegram_chat_id, text=f"Image created at: {created_at_str}")
 
     except Exception as e:
         logger.error("Failed to send images: %s", e)
