@@ -60,10 +60,31 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Latest image file is missing on the server.")
         return
 
+    proc_img_path = latest.processed_image.path
+    if not os.path.exists(proc_img_path):
+        await update.message.reply_text("Latest processed image file is missing on the server.")
+        return
+
     try:
         # open file per-send to avoid stream exhaustion
         with open(img_path, 'rb') as f:
-            await update.message.reply_photo(photo=InputFile(f), caption=f"Last image uploaded at {latest.created_at}")
+            await update.message.reply_photo(photo=InputFile(f), caption="Original image")
+
+        with open(proc_img_path, 'rb') as pf:
+            await update.message.reply_photo(photo=InputFile(pf), caption="Processed image")
+
+        # Send metadata as a message
+        metadata_message = "Detections:\n"
+        for ann in latest.metadata.get("annotations", []):
+            label = ann.get('label', 'unknown')
+            score = ann.get('score', 0.0)
+            metadata_message += f"- {label}: {score:.2%}\n"
+        await update.message.reply_text(metadata_message)
+
+        # Send creation time format to dd-mm-YYYY HH:MM:SS
+        created_at_str = latest.created_at.strftime("%d-%m-%Y %H:%M:%S")
+        await update.message.reply_text(f"Image created at: {created_at_str}")
+
     except Exception as exc:  # pragma: no cover - best-effort send
         logger.exception("Failed to send last image: %s", exc)
         await update.message.reply_text("Failed to send the image.")
