@@ -3,7 +3,7 @@ from monitor.models import MyImage
 import os, io
 from PIL import Image, ImageDraw, ImageFont
 
-from telegram_bot.bot import send_processed_image
+# from telegram_bot.bot import send_processed_image
 
 def run_inference(image_path: str) -> dict[str, any]:
     """Envia la imagen a la API de detección de animales."""
