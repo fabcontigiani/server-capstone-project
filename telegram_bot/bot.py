@@ -32,7 +32,7 @@ async def start(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             'username': username,
         },
     )
-    await update.message.reply_text(f"Hello, {name}! This is the Django bot.")
+    await update.message.reply_text(f"Hello, {name}! This is the WildEye bot.")
     await update.message.reply_text(f"Chat ID: {chat_id}; Username: {username}")
 
 
@@ -117,6 +117,44 @@ async def send_processed_image(telegram_chat_id: int, original_image_path: str, 
 
     except Exception as e:
         logger.error("Failed to send images: %s", e)
+
+async def broadcast_processed_image(original_image_path: str, processed_image_path: str, metadata: dict[str, any], created_at: datetime) -> None:
+    """Broadcast original and processed images to all registered Telegram users."""
+    
+    bot = Bot(token=os.environ.get("TELEGRAM_BOT_TOKEN"))
+    
+    # Get all registered users (sync ORM call)
+    all_users = await sync_to_async(lambda: list(TelegramUser.objects.all()))()
+    
+    if not all_users:
+        logger.warning("No Telegram users registered for broadcast.")
+        return
+    
+    # Prepare metadata message
+    metadata_message = "Detections:\n"
+    for ann in metadata.get("annotations", []):
+        label = ann.get('label', 'unknown')
+        score = ann.get('score', 0.0)
+        metadata_message += f"- {label}: {score:.2%}\n"
+    
+    created_at_str = created_at.strftime("%d-%m-%Y %H:%M:%S")
+    time_message = f"Image created at: {created_at_str}"
+    
+    # Send to each user
+    for user in all_users:
+        try:
+            with open(original_image_path, 'rb') as orig_file:
+                await bot.send_photo(chat_id=user.chat_id, photo=InputFile(orig_file), caption="Original Image")
+
+            with open(processed_image_path, 'rb') as proc_file:
+                await bot.send_photo(chat_id=user.chat_id, photo=InputFile(proc_file), caption="Processed Image")
+
+            await bot.send_message(chat_id=user.chat_id, text=metadata_message)
+            await bot.send_message(chat_id=user.chat_id, text=time_message)
+            
+            logger.info("Broadcasted images to chat_id=%s", user.chat_id)
+        except Exception as e:
+            logger.error("Failed to broadcast to chat_id=%s: %s", user.chat_id, e)
 
 async def register_mac(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     """Register MAC address to the user chat ID."""

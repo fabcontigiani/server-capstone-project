@@ -8,7 +8,7 @@ from monitor.service import process_image
 
 from django.views.decorators.http import require_http_methods
 
-from telegram_bot.bot import send_processed_image
+from telegram_bot.bot import send_processed_image, broadcast_processed_image
 
 from asgiref.sync import async_to_sync
 
@@ -65,7 +65,8 @@ def upload(request):
         try:
             relation = MacTelegramRelation.objects.get(mac_address=mac_address)
             telegram_chat_id = relation.telegram_chat_id
-            async_to_sync(send_processed_image)(telegram_chat_id, image.image.path, image.processed_image.path, metadata, created_at)
+            # async_to_sync(send_processed_image)(telegram_chat_id, image.image.path, image.processed_image.path, metadata, created_at)
+            async_to_sync(broadcast_processed_image)(image.image.path, image.processed_image.path, metadata, created_at)
         except MacTelegramRelation.DoesNotExist:
             return HttpResponse("No Telegram chat registered for this MAC address.")
 
