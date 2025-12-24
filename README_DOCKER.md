@@ -23,7 +23,7 @@ Quick start (development)
 docker compose up --build
 ```
 
-3. Visit http://localhost:8001 for the web app. The SpeciesNet API is available at
+3. Visit http://localhost:8000 for the web app. The SpeciesNet API is available at
    http://localhost:8002/predict for direct testing.
 
 4. The Telegram bot can be started by running the `bot` service; it will register users
@@ -32,7 +32,7 @@ docker compose up --build
 
 Services
 --------
-- **web**: Django application server (port 8001)
+- **web**: Django application server (port 8000)
 - **bot**: Telegram bot for notifications and image retrieval
 - **speciesnet**: ML server for animal detection/classification (port 8002)
 - **db**: PostgreSQL database
@@ -57,12 +57,24 @@ To enable GPU acceleration for SpeciesNet (recommended for production), uncommen
 the `deploy` section in docker-compose.yml for the `speciesnet` service. You'll need
 the NVIDIA Container Toolkit installed.
 
-Notes & next steps
-------------------
-- The provided `CMD` runs `manage.py runserver` for convenience. For production,
- The image runs `gunicorn` with `uvicorn` workers by default. You can tune
- the number of workers with the `GUNICORN_WORKERS` environment variable in
- `docker-compose.yml` or `.env`.
-  rebuilding the whole image twice.
-  decide to send notifications on upload asynchronously.
+How It Works
+------------
+When an image is uploaded through the web interface:
+
+1. Django saves the image and triggers processing
+2. `service.py` sends the image path to the SpeciesNet server (`http://speciesnet:8000/predict`)
+3. SpeciesNet performs detection (bounding boxes) and classification (species identification)
+4. Results are saved to the database as JSON metadata
+5. Processed image with bounding boxes is generated using `speciesnet.draw_bboxes()`
+6. Telegram bot can retrieve and display both images plus classification results
+
+Notes & Best Practices
+----------------------
+- The image runs `gunicorn` with `uvicorn` workers by default. Tune worker count with
+  the `GUNICORN_WORKERS` environment variable in `docker-compose.yml` or `.env`
+- SpeciesNet model files (~2GB) are cached in a Docker volume for faster restarts
+- First startup takes 5-10 minutes for model download; subsequent starts are ~30 seconds
+- For production, enable GPU support for 3-5x faster inference
+- Monitor SpeciesNet container logs during first startup to track model download progress
+- The `/app/media` directory is shared between web, bot, and speciesnet containers
 
