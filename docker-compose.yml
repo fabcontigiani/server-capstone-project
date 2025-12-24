@@ -10,8 +10,12 @@ services:
       - ./static:/app/static
       - ./monitor/static:/app/monitor/static
       - ./media:/app/media
+    restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      speciesnet:
+        condition: service_started
     # The image entrypoint will run migrations and collectstatic before executing the default command
 
   bot:
@@ -22,19 +26,55 @@ services:
     command: ["python", "manage.py", "run_telegram_bot", "--token", "${TELEGRAM_BOT_TOKEN:-}"]
     volumes:
       - ./media:/app/media
+    restart: unless-stopped
     depends_on:
       - web
 
+  speciesnet:
+    build:
+      context: .
+      dockerfile: speciesnet.Dockerfile
+    image: server-capstone-project:speciesnet
+    ports:
+      - "8002:8000"
+    volumes:
+      # Persist model cache to avoid re-downloading
+      - speciesnet_cache:/app/.cache
+      # Share media folder so speciesnet can access uploaded images
+      - ./media:/app/media:ro
+    restart: unless-stopped
+    # GPU support (uncomment if you have NVIDIA GPU and nvidia-container-toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Model loading can take time
+
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-capstone}
       POSTGRES_USER: ${POSTGRES_USER:-capstone}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-capstone}
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-capstone} -d ${POSTGRES_DB:-capstone} -h 127.0.0.1"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
 volumes:
   static_volume:
   media_volume:
   db_data:
+  speciesnet_cache:

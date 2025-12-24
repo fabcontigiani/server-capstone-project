@@ -6,6 +6,14 @@ FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS builder
 
 WORKDIR /app
 
+# BuildKit cache mounts can be on a different filesystem; hardlinking may fail.
+# Force copy mode to avoid the warning.
+ENV UV_LINK_MODE=copy
+
+# Native Python deps (e.g. ml-dtypes) may need a compiler toolchain on Python 3.13.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential
+
 # Copy only lock and pyproject first to leverage layer caching for deps
 COPY pyproject.toml uv.lock* ./
 
@@ -24,6 +32,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS runtime
 
 WORKDIR /app
+
+# Runtime libs needed by OpenCV (cv2)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libgl1 \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the synced virtualenv and the project from the builder
 COPY --from=builder /app/.venv /app/.venv

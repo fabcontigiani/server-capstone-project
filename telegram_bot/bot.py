@@ -4,7 +4,7 @@ import os
 import logging
 from typing import Optional
 
-from telegram import Update, InputFile
+from telegram import Update, InputFile, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from telegram.ext import MessageHandler, filters
 from asgiref.sync import sync_to_async
@@ -40,11 +40,55 @@ async def echo(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"You said: {update.message.text}")
 
 
-async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send the most recently uploaded image to the requesting chat.
+def format_classification_results(metadata: dict) -> str:
+    """Format classification results for display in Telegram."""
+    if not metadata:
+        return "No analysis data available."
+    
+    if "error" in metadata:
+        return f"❌ Analysis failed: {metadata['error']}"
+    
+    lines = []
+    
+    # Detection summary
+    detections_count = metadata.get("detections_count", 0)
+    if detections_count > 0:
+        lines.append(f"🔍 *Detections:* {detections_count} object(s) found")
+        
+        # Show detection labels from predictions
+        predictions = metadata.get("predictions", {})
+        detections = predictions.get("detections", [])
+        for det in detections[:5]:  # Show up to 5 detections
+            label = det.get("label", "unknown")
+            conf = det.get("conf", 0)
+            lines.append(f"  • {label}: {conf:.1%}")
+    else:
+        lines.append("🔍 *Detections:* No objects detected")
+    
+    lines.append("")
+    
+    # Classification results
+    top_classifications = metadata.get("top_classifications", [])
+    if top_classifications:
+        lines.append("🏷️ *Top Classifications:*")
+        for cls in top_classifications[:5]:
+            rank = cls.get("rank", "?")
+            class_name = cls.get("class", "unknown")
+            score_percent = cls.get("score_percent", "0%")
+            # Clean up the class name (species taxonomy format)
+            display_name = class_name.split(";")[-1] if ";" in class_name else class_name
+            lines.append(f"  {rank}. {display_name} ({score_percent})")
+    else:
+        lines.append("🏷️ *Classifications:* No classification data")
+    
+    return "\n".join(lines)
 
-    Looks up the latest `MyImage` by `created_at`, ensures the file exists,
-    and sends it as a photo. If no image is available, replies with a message.
+
+async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the most recently uploaded image with analysis results.
+
+    Sends the original photo, the processed photo with detections,
+    and a list of top classification results.
     """
     # find latest MyImage (sync ORM via sync_to_async)
     latest = await sync_to_async(lambda: MyImage.objects.order_by('-created_at').first())()
@@ -52,16 +96,50 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("No images have been uploaded yet.")
         return
 
-    # ensure file exists and send
+    # Paths
     img_path = latest.image.path
+    processed_path = latest.processed_image.path if latest.processed_image else None
+    
     if not os.path.exists(img_path):
         await update.message.reply_text("Latest image file is missing on the server.")
         return
 
     try:
-        # open file per-send to avoid stream exhaustion
+        # Prepare media group with original and processed images
+        media_group = []
+        
+        # Original image
         with open(img_path, 'rb') as f:
-            await update.message.reply_photo(photo=InputFile(f), caption=f"Last image uploaded at {latest.created_at}")
+            original_bytes = f.read()
+        media_group.append(InputMediaPhoto(
+            media=original_bytes,
+            caption=f"📷 Original image uploaded at {latest.created_at.strftime('%Y-%m-%d %H:%M')}"
+        ))
+        
+        # Processed image with detections (if available)
+        if processed_path and os.path.exists(processed_path):
+            with open(processed_path, 'rb') as f:
+                processed_bytes = f.read()
+            media_group.append(InputMediaPhoto(
+                media=processed_bytes,
+                caption="🎯 Processed image with detections"
+            ))
+        
+        # Send media group
+        if len(media_group) > 1:
+            await update.message.reply_media_group(media=media_group)
+        else:
+            # Just send original if no processed image
+            await update.message.reply_photo(
+                photo=original_bytes,
+                caption=f"📷 Image uploaded at {latest.created_at.strftime('%Y-%m-%d %H:%M')}"
+            )
+        
+        # Send classification results as text
+        metadata = latest.metadata or {}
+        results_text = format_classification_results(metadata)
+        await update.message.reply_text(results_text, parse_mode='Markdown')
+        
     except Exception as exc:  # pragma: no cover - best-effort send
         logger.exception("Failed to send last image: %s", exc)
         await update.message.reply_text("Failed to send the image.")
@@ -88,3 +166,4 @@ def run(token: Optional[str] = None) -> None:
     logger.info("Starting telegram bot (polling)")
     app = create_application(token=token)
     app.run_polling()
+
