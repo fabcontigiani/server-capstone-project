@@ -9,7 +9,7 @@ services:
       # Mount project-level static for development so changes reflect inside container
       - ./static:/app/static
       - ./monitor/static:/app/monitor/static
-      - ./media:/app/media
+      - media_volume:/app/media
     restart: unless-stopped
     depends_on:
       db:
@@ -25,7 +25,7 @@ services:
     # The image entrypoint will run migrations and collectstatic before executing this command
     command: ["python", "manage.py", "run_telegram_bot", "--token", "${TELEGRAM_BOT_TOKEN:-}"]
     volumes:
-      - ./media:/app/media
+      - media_volume:/app/media
     restart: unless-stopped
     depends_on:
       - web
@@ -41,7 +41,7 @@ services:
       # Persist model cache to avoid re-downloading
       - speciesnet_cache:/app/.cache
       # Share media folder so speciesnet can access uploaded images
-      - ./media:/app/media:ro
+      - media_volume:/app/media:ro
     restart: unless-stopped
     # GPU support (uncomment if you have NVIDIA GPU and nvidia-container-toolkit)
     # deploy:
