@@ -28,7 +28,9 @@ urlpatterns = [
     path('upload/', views.upload, name='upload'),
 ]
 
+# Serve media files (user uploads) - needed in production too
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     # Serve static files via Django when DEBUG=True (useful in Docker dev)
     urlpatterns += staticfiles_urlpatterns()
