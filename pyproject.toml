@@ -13,4 +13,5 @@ dependencies = [
     "requests>=2.32.5",
     "speciesnet>=5.0.2",
     "uvicorn>=0.37.0",
+    "whitenoise>=6.11.0",
 ]
