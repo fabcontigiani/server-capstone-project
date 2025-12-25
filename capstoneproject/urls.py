@@ -28,9 +28,10 @@ urlpatterns = [
     path('upload/', views.upload, name='upload'),
 ]
 
-# Serve media files (user uploads) - needed in production too
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
+# Only serve media files via Django in DEBUG mode
+# In production, WhiteNoise will handle media file serving
 if settings.DEBUG:
     # Serve static files via Django when DEBUG=True (useful in Docker dev)
     urlpatterns += staticfiles_urlpatterns()
+    # Serve media files via Django in development
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
