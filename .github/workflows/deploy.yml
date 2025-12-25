@@ -9,6 +9,17 @@ jobs:
     runs-on: self-hosted
 
     steps:
+      - name: Pre-cleanup - Stop containers and fix permissions
+        run: |
+          cd ${{ github.workspace }} 2>/dev/null || true
+          # Stop containers first
+          docker compose down 2>/dev/null || true
+          # Use Docker to fix file permissions (no sudo needed)
+          if [ -d media ]; then
+            docker run --rm -v "$(pwd)/media:/data" alpine:latest sh -c "chown -R $(id -u):$(id -g) /data" 2>/dev/null || true
+          fi
+        continue-on-error: true
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -25,6 +36,8 @@ jobs:
           POSTGRES_PORT=5432
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           GUNICORN_WORKERS=4
+          UID=$(id -u)
+          GID=$(id -g)
           EOF
 
       - name: Deploy with Docker Compose
