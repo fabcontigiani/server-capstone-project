@@ -74,7 +74,6 @@ services:
       retries: 30
 
 volumes:
-  static_volume:
   media_volume:
   db_data:
   speciesnet_cache:
