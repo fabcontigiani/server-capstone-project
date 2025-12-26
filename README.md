@@ -17,8 +17,10 @@ The project consists of four main services:
 
 1. **Web Service** (Django): Main application server with admin interface and image management
 2. **Bot Service** (Python Telegram Bot): Telegram bot for user interactions
-3. **SpeciesNet Service** (ML Server): Dedicated ML inference server using Google's SpeciesNet model
+3. **SpeciesNet Service**: Pre-built ML inference container from `ghcr.io/fabcontigiani/wildlife-detection-capstone-project`
 4. **Database** (PostgreSQL): Data persistence
+
+The ML inference service handles both detection/classification and image annotation, returning annotated images alongside the original files.
 
 ## Prerequisites
 
@@ -84,6 +86,7 @@ curl -X POST http://localhost:8002/predict \
 Response includes:
 - `detections`: Bounding boxes with labels (animal/human/vehicle) and confidence
 - `classifications`: Species predictions with confidence scores
+- `annotated_filepath`: Path to the annotated image with bounding boxes
 
 ## Development
 
@@ -122,7 +125,6 @@ python manage.py runserver
 ├── media/               # Uploaded images (Docker volume)
 ├── static/              # Static files
 ├── Dockerfile           # Web/bot service image
-├── speciesnet.Dockerfile # ML service image
 └── docker-compose.yml   # Service orchestration
 ```
 
@@ -149,8 +151,7 @@ For faster inference with NVIDIA GPU:
 ## Technology Stack
 
 - **Backend**: Django 5.2, Python 3.13
-- **ML Framework**: SpeciesNet (PyTorch, YOLOv5)
-- **ML Server**: LitServe (FastAPI-based)
+- **ML Service**: Pre-built container from `ghcr.io/fabcontigiani/wildlife-detection-capstone-project`
 - **Bot Framework**: python-telegram-bot
 - **Database**: PostgreSQL 15
 - **Deployment**: Docker, Docker Compose, Gunicorn with Uvicorn workers
