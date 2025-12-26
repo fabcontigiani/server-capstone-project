@@ -8,7 +8,10 @@ from telegram_bot.bot import format_classification_results
 
 logger = logging.getLogger(__name__)
 
-async def _broadcast_results(chat_ids, original_bytes, processed_bytes, text_report, created_at):
+
+async def _broadcast_results(
+    chat_ids, original_bytes, processed_bytes, text_report, created_at
+):
     """Función asíncrona para enviar medios y texto a todos los usuarios."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -16,31 +19,38 @@ async def _broadcast_results(chat_ids, original_bytes, processed_bytes, text_rep
         return
 
     bot = Bot(token=token)
-    
+
     for chat_id in chat_ids:
         try:
             # Re-crear objetos multimedia para cada envío
             media_group = []
-            caption = f"Nueva imagen capturada: {created_at.strftime('%Y-%m-%d %H:%M')}"
-            
+            caption = (
+                f"📷 Nueva imagen capturada\n🕐 {created_at.strftime('%Y-%m-%d %H:%M')}"
+            )
+
             # Imagen original
             media_group.append(InputMediaPhoto(media=original_bytes, caption=caption))
-            
-            # Imagen procesada (si existe)
+
+            # Imagen procesada (si existe) - sin caption, Telegram solo muestra el primero
             if processed_bytes:
-                media_group.append(InputMediaPhoto(media=processed_bytes, caption="🎯 Análisis con detecciones"))
-            
+                media_group.append(InputMediaPhoto(media=processed_bytes))
+
             # Enviar grupo de fotos
             if len(media_group) > 1:
                 await bot.send_media_group(chat_id=chat_id, media=media_group)
             else:
-                await bot.send_photo(chat_id=chat_id, photo=original_bytes, caption=caption)
-            
+                await bot.send_photo(
+                    chat_id=chat_id, photo=original_bytes, caption=caption
+                )
+
             # Enviar reporte de texto
-            await bot.send_message(chat_id=chat_id, text=text_report, parse_mode=ParseMode.MARKDOWN)
-            
+            await bot.send_message(
+                chat_id=chat_id, text=text_report, parse_mode=ParseMode.MARKDOWN
+            )
+
         except Exception as e:
             logger.error(f"Failed to send notification to {chat_id}: {e}")
+
 
 def send_telegram_notification(instance):
     """
@@ -48,11 +58,13 @@ def send_telegram_notification(instance):
     """
     try:
         # 1. Obtener destinatarios (usuarios que han iniciado el bot)
-        chat_ids = list(TelegramUser.objects.values_list('chat_id', flat=True))
+        chat_ids = list(TelegramUser.objects.values_list("chat_id", flat=True))
         if not chat_ids:
             return
-        
-        logger.warning(f"Preparing to send notification to {len(chat_ids)} users: {chat_ids}")
+
+        logger.warning(
+            f"Preparing to send notification to {len(chat_ids)} users: {chat_ids}"
+        )
 
         # 2. Preparar datos (leer archivos en memoria para evitar problemas de I/O en async)
         img_path = instance.image.path
@@ -60,12 +72,12 @@ def send_telegram_notification(instance):
             logger.warning(f"Image file not found: {img_path}")
             return
 
-        with open(img_path, 'rb') as f:
+        with open(img_path, "rb") as f:
             original_bytes = f.read()
 
         processed_bytes = None
         if instance.processed_image and os.path.exists(instance.processed_image.path):
-            with open(instance.processed_image.path, 'rb') as f:
+            with open(instance.processed_image.path, "rb") as f:
                 processed_bytes = f.read()
 
         # 3. Formatear texto usando la utilidad existente
@@ -74,11 +86,7 @@ def send_telegram_notification(instance):
 
         # 4. Ejecutar envío asíncrono desde contexto síncrono
         async_to_sync(_broadcast_results)(
-            chat_ids, 
-            original_bytes, 
-            processed_bytes, 
-            text_report,
-            instance.created_at
+            chat_ids, original_bytes, processed_bytes, text_report, instance.created_at
         )
         logger.info(f"Sent Telegram notification to {len(chat_ids)} users.")
 
