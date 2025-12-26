@@ -51,6 +51,8 @@ def send_telegram_notification(instance):
         chat_ids = list(TelegramUser.objects.values_list('chat_id', flat=True))
         if not chat_ids:
             return
+        
+        logger.warning(f"Preparing to send notification to {len(chat_ids)} users: {chat_ids}")
 
         # 2. Preparar datos (leer archivos en memoria para evitar problemas de I/O en async)
         img_path = instance.image.path
