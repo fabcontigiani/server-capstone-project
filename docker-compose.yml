@@ -23,7 +23,7 @@ services:
     image: server-capstone-project:bot
     env_file: .env
     # The image entrypoint will run migrations and collectstatic before executing this command
-    command: ["python", "manage.py", "run_telegram_bot", "--token", "${TELEGRAM_BOT_TOKEN:-}"]
+    command: [ "python", "manage.py", "run_telegram_bot", "--token", "${TELEGRAM_BOT_TOKEN:-}" ]
     volumes:
       - media_volume:/app/media
     restart: unless-stopped
@@ -31,17 +31,14 @@ services:
       - web
 
   speciesnet:
-    build:
-      context: .
-      dockerfile: speciesnet.Dockerfile
-    image: server-capstone-project:speciesnet
+    image: ghcr.io/fabcontigiani/wildlife-detection-capstone-project:master
     ports:
       - "8002:8000"
     volumes:
       # Persist model cache to avoid re-downloading
       - speciesnet_cache:/app/.cache
-      # Share media folder so speciesnet can access uploaded images
-      - media_volume:/app/media:ro
+      # Share media folder - read-write to save annotated images
+      - media_volume:/app/media
     restart: unless-stopped
     # GPU support (uncomment if you have NVIDIA GPU and nvidia-container-toolkit)
     # deploy:
@@ -52,11 +49,11 @@ services:
     #           count: 1
     #           capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 120s  # Model loading can take time
+      start_period: 120s # Model loading can take time
 
   db:
     image: postgres:15-alpine
@@ -68,7 +65,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-capstone} -d ${POSTGRES_DB:-capstone} -h 127.0.0.1"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-capstone} -d ${POSTGRES_DB:-capstone} -h 127.0.0.1" ]
       interval: 2s
       timeout: 5s
       retries: 30
