@@ -6,6 +6,8 @@ import requests
 from django.core.files import File
 from monitor.models import MyImage
 
+from telegram_bot.sender import send_telegram_notification
+
 logger = logging.getLogger(__name__)
 
 # SpeciesNet server URL (internal docker network)
@@ -97,3 +99,6 @@ def process_image(instance: MyImage) -> None:
     logger.info(
         f"Processed image {instance.image.path}: {len(prediction.get('detections', []))} detections"
     )
+
+    # Enviar notificación por Telegram
+    send_telegram_notification(instance)
