@@ -85,6 +85,8 @@ def process_image(instance: MyImage) -> None:
         with open(annotated_filepath, "rb") as f:
             filename = f"processed_{Path(instance.image.name).name}"
             instance.processed_image.save(filename, File(f), save=False)
+        # Remove the duplicate from the original location
+        os.remove(annotated_filepath)
 
     # Save full prediction metadata including classifications
     instance.metadata = {
