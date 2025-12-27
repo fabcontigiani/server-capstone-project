@@ -125,7 +125,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.getenv('DJANGO_TIME_ZONE', 'UTC')
 
 USE_I18N = True
 
@@ -138,10 +138,9 @@ USE_TZ = True
 # Always use a leading slash in URLs
 STATIC_URL = '/static/'
 
-# Include project-level and app-level static folders so templates resolve assets
+# Include project-level static folder for templates to resolve assets
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'monitor', 'static'),
 ]
 
 # Where `collectstatic` will collect static files for production
