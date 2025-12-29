@@ -25,7 +25,7 @@
                         <img src="{{ entry.image.processed_image.url }}" alt="Procesada">
                     {% else %}
                         <div style="height:180px; display:flex; align-items:center; justify-content:center; color:#64748b;">
-                            <span>⚙️ Procesando...</span>
+                            <span>Processing...</span>
                         </div>
                     {% endif %}
                 </div>
@@ -39,18 +39,18 @@
 
                 <div class="meta-grid">
                     <div class="meta-col">
-                        <h4>Detecciones</h4>
+                        <h4>Detections</h4>
                         <ul class="scroll-list">
                         {% for det in entry.detections %}
                             <li>{{ det.label }} <span class="score-high">{{ det.conf }}</span></li>
                         {% empty %}
-                            <li style="color:#64748b;">Ninguna</li>
+                            <li style="color:#64748b;">None</li>
                         {% endfor %}
                         </ul>
                     </div>
                     
                     <div class="meta-col">
-                        <h4>Clasificación</h4>
+                        <h4>Classification</h4>
                         <ul class="scroll-list">
                         {% for cls in entry.classifications %}
                             <li>{{ cls.name }} ({{ cls.score }})</li>

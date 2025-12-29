@@ -102,5 +102,5 @@ def process_image(instance: MyImage) -> None:
         f"Processed image {instance.image.path}: {len(prediction.get('detections', []))} detections"
     )
 
-    # Enviar notificación por Telegram
+    # Send Telegram notification
     send_telegram_notification(instance)

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 async def _broadcast_results(
     chat_ids, original_bytes, processed_bytes, text_report, created_at
 ):
-    """Función asíncrona para enviar medios y texto a todos los usuarios."""
+    """Async function to send media and text to all users."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("No TELEGRAM_BOT_TOKEN found. Skipping notification.")
@@ -22,11 +22,9 @@ async def _broadcast_results(
 
     for chat_id in chat_ids:
         try:
-            # Re-crear objetos multimedia para cada envío
+            # Re-create media objects for each send
             media_group = []
-            caption = (
-                f"📷 Nueva imagen capturada\n🕐 {created_at.strftime('%Y-%m-%d %H:%M')}"
-            )
+            caption = f"New image captured\n{created_at.strftime('%Y-%m-%d %H:%M')}"
 
             # Imagen original
             media_group.append(InputMediaPhoto(media=original_bytes, caption=caption))
@@ -84,7 +82,7 @@ def send_telegram_notification(instance):
         metadata = instance.metadata or {}
         text_report = format_classification_results(metadata)
 
-        # 4. Ejecutar envío asíncrono desde contexto síncrono
+        # 4. Execute async send from sync context
         async_to_sync(_broadcast_results)(
             chat_ids, original_bytes, processed_bytes, text_report, instance.created_at
         )
