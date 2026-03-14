@@ -6,6 +6,7 @@ import requests
 from django.core.files import File
 from monitor.models import MyImage
 
+from monitor.filters import should_send_notification
 from telegram_bot.sender import send_telegram_notification
 
 logger = logging.getLogger(__name__)
@@ -102,5 +103,9 @@ def process_image(instance: MyImage) -> None:
         f"Processed image {instance.image.path}: {len(prediction.get('detections', []))} detections"
     )
 
-    # Enviar notificación por Telegram
-    send_telegram_notification(instance)
+    # Decidir si enviar notificación por Telegram según la lógica de filtrado
+    if should_send_notification(prediction):
+        send_telegram_notification(instance)
+        logger.info("Image passed filter → notification sent")
+    else:
+        logger.info("Image filtered out → no notification sent")
