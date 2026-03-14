@@ -145,6 +145,28 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Failed to send the image.")
 
 
+async def set_treshold(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Set a detection threshold value.
+
+    Usage: /set_treshold <int>
+    """
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: /set_treshold <value>\nExample: /set_treshold 50"
+        )
+        return
+
+    try:
+        value = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text(
+            "Invalid value. Please provide an integer.\nExample: /set_treshold 50"
+        )
+        return
+
+    await update.message.reply_text(f"Threshold set to {value}.")
+
+
 def create_application(token: Optional[str] = None):
     """Build and return a telegram Application instance.
 
@@ -157,6 +179,7 @@ def create_application(token: Optional[str] = None):
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("last", last))
+    app.add_handler(CommandHandler("set_treshold", set_treshold))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     return app
 
