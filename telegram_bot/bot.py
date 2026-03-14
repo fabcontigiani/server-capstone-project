@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from telegram.ext import MessageHandler, filters
 from asgiref.sync import sync_to_async
 
-from telegram_bot.models import TelegramUser
+from telegram_bot.models import TelegramUser, BotSettings
 from monitor.models import MyImage
 
 logger = logging.getLogger(__name__)
@@ -164,7 +164,11 @@ async def set_treshold(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
-    await update.message.reply_text(f"Threshold set to {value}.")
+    await sync_to_async(BotSettings.set_threshold)(value)
+    await update.message.reply_text(
+        f"Threshold set to {value}%.\n"
+        f"Only images with top classification score >= {value}% will be notified."
+    )
 
 
 def create_application(token: Optional[str] = None):

@@ -3,7 +3,7 @@ import logging
 from asgiref.sync import async_to_sync
 from telegram import Bot, InputMediaPhoto
 from telegram.constants import ParseMode
-from telegram_bot.models import TelegramUser
+from telegram_bot.models import TelegramUser, BotSettings
 from telegram_bot.bot import format_classification_results
 
 logger = logging.getLogger(__name__)
@@ -52,11 +52,33 @@ async def _broadcast_results(
             logger.error(f"Failed to send notification to {chat_id}: {e}")
 
 
+def _get_top_classification_score(metadata: dict) -> float:
+    """Extract the highest classification score (0-100) from image metadata."""
+    top_classifications = metadata.get("top_classifications", [])
+    if not top_classifications:
+        return 0.0
+    top_score = top_classifications[0].get("score", 0.0)
+    return top_score * 100  # Convert from 0.0-1.0 to 0-100
+
+
 def send_telegram_notification(instance):
     """
     Lee los datos de la imagen y los transmite a todos los usuarios de Telegram registrados.
+    Solo envía si el top classification score >= threshold global.
     """
     try:
+        # 0. Chequear umbral de clasificación
+        threshold = BotSettings.get_threshold()
+        metadata = instance.metadata or {}
+        top_score = _get_top_classification_score(metadata)
+
+        if top_score < threshold:
+            logger.info(
+                f"Image skipped: top classification score {top_score:.1f}% "
+                f"< threshold {threshold}%"
+            )
+            return
+
         # 1. Obtener destinatarios (usuarios que han iniciado el bot)
         chat_ids = list(TelegramUser.objects.values_list("chat_id", flat=True))
         if not chat_ids:
@@ -81,7 +103,6 @@ def send_telegram_notification(instance):
                 processed_bytes = f.read()
 
         # 3. Formatear texto usando la utilidad existente
-        metadata = instance.metadata or {}
         text_report = format_classification_results(metadata)
 
         # 4. Ejecutar envío asíncrono desde contexto síncrono
