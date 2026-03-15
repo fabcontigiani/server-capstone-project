@@ -69,8 +69,10 @@ def get_top_class(prediction: dict) -> tuple[str, float]:
     return "", 0.0
 
 
-def should_send_notification(prediction: dict) -> bool:
+def should_send_notification(prediction: dict) -> tuple[bool, str]:
     """Decide whether an image is worth sending via Telegram.
+
+    Returns (should_send, reason) where reason describes the decision.
 
     Decision matrix
     ───────────────────────────────────────────────────────────────────────────
@@ -98,24 +100,29 @@ def should_send_notification(prediction: dict) -> bool:
 
     # 1. Aceptación Directa: alta certeza de presencia
     if max_det > DETECTION_HIGH:
-        logger.info("Filter → SEND (Aceptación Directa: detección %.1f%%)", max_det * 100)
-        return True
+        reason = f"✅ Aceptación Directa (detección {max_det:.0%})"
+        logger.info("Filter → SEND (%s)", reason)
+        return True, reason
 
     # 2. Clasificación Segura: el clasificador está seguro de que hay algo
     if not top_is_blank and top_score > CLASSIFICATION_MIN:
-        logger.info("Filter → SEND (Clasificación Segura: %s %.1f%%)", top_class, top_score * 100)
-        return True
+        reason = f"✅ Clasificación Segura ({top_class} {top_score:.1%})"
+        logger.info("Filter → SEND (%s)", reason)
+        return True, reason
 
     # 3. Conflicto Interesante: hay detección razonable pero clasificador dice blank
     if max_det > DETECTION_MID and top_is_blank:
-        logger.info("Filter → SEND (Conflicto Interesante: detección %.1f%% pero top=blank)", max_det * 100)
-        return True
+        reason = f"⚠️ Conflicto Interesante (detección {max_det:.0%} pero clasificación=blank)"
+        logger.info("Filter → SEND (%s)", reason)
+        return True, reason
 
     # 4. Detección Débil + blank → probable falso positivo / viento
     if max_det < DETECTION_LOW and top_is_blank:
-        logger.info("Filter → IGNORE (Detección Débil: %.1f%% + blank)", max_det * 100)
-        return False
+        reason = f"Detección Débil ({max_det:.0%} + blank)"
+        logger.info("Filter → IGNORE (%s)", reason)
+        return False, reason
 
     # 5. Default: enviar por precaución
-    logger.info("Filter → SEND (Default / precaución)")
-    return True
+    reason = "ℹ️ Default (enviado por precaución)"
+    logger.info("Filter → SEND (%s)", reason)
+    return True, reason

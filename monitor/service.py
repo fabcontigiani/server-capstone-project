@@ -104,8 +104,9 @@ def process_image(instance: MyImage) -> None:
     )
 
     # Decidir si enviar notificación por Telegram según la lógica de filtrado
-    if should_send_notification(prediction):
-        send_telegram_notification(instance)
+    should_send, filter_reason = should_send_notification(prediction)
+    if should_send:
+        send_telegram_notification(instance, filter_reason=filter_reason)
         logger.info("Image passed filter → notification sent")
     else:
-        logger.info("Image filtered out → no notification sent")
+        logger.info("Image filtered out (%s) → no notification sent", filter_reason)
