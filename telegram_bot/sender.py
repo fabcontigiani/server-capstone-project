@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _broadcast_results(
-    chat_ids, original_bytes, processed_bytes, text_report, created_at
+    chat_ids, original_bytes, processed_bytes, text_report, created_at,
+    filter_reason="",
 ):
     """Función asíncrona para enviar medios y texto a todos los usuarios."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -43,16 +44,21 @@ async def _broadcast_results(
                     chat_id=chat_id, photo=original_bytes, caption=caption
                 )
 
+            # Agregar razón del filtro al reporte
+            full_report = text_report
+            if filter_reason:
+                full_report += f"\n\n🧠 *Filtro:* {filter_reason}"
+
             # Enviar reporte de texto
             await bot.send_message(
-                chat_id=chat_id, text=text_report, parse_mode=ParseMode.MARKDOWN
+                chat_id=chat_id, text=full_report, parse_mode=ParseMode.MARKDOWN
             )
 
         except Exception as e:
             logger.error(f"Failed to send notification to {chat_id}: {e}")
 
 
-def send_telegram_notification(instance):
+def send_telegram_notification(instance, filter_reason=""):
     """
     Lee los datos de la imagen y los transmite a todos los usuarios de Telegram registrados.
     """
@@ -86,7 +92,8 @@ def send_telegram_notification(instance):
 
         # 4. Ejecutar envío asíncrono desde contexto síncrono
         async_to_sync(_broadcast_results)(
-            chat_ids, original_bytes, processed_bytes, text_report, instance.created_at
+            chat_ids, original_bytes, processed_bytes, text_report,
+            instance.created_at, filter_reason=filter_reason,
         )
         logger.info(f"Sent Telegram notification to {len(chat_ids)} users.")
 
