@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import logging
 from typing import Optional
+from django.utils import timezone
 
 from telegram import Update, InputFile, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -43,17 +44,17 @@ async def echo(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
 def format_classification_results(metadata: dict) -> str:
     """Format classification results for display in Telegram."""
     if not metadata:
-        return "No analysis data available."
+        return "No hay datos de análisis disponibles."
     
     if "error" in metadata:
-        return f"❌ Analysis failed: {metadata['error']}"
+        return f"Error en el análisis: {metadata['error']}"
     
     lines = []
     
     # Detection summary
     detections_count = metadata.get("detections_count", 0)
     if detections_count > 0:
-        lines.append(f"🔍 *Detections:* {detections_count} object(s) found")
+        lines.append(f"*Detecciones:* {detections_count} objeto(s) encontrados")
         
         # Show detection labels from predictions
         predictions = metadata.get("predictions", {})
@@ -63,14 +64,14 @@ def format_classification_results(metadata: dict) -> str:
             conf = det.get("conf", 0)
             lines.append(f"  • {label}: {conf:.1%}")
     else:
-        lines.append("🔍 *Detections:* No objects detected")
+        lines.append("*Detecciones:* No se detectaron objetos")
     
     lines.append("")
     
     # Classification results
     top_classifications = metadata.get("top_classifications", [])
     if top_classifications:
-        lines.append("🏷️ *Top Classifications:*")
+        lines.append("*Clasificaciones principales:*")
         for cls in top_classifications[:5]:
             rank = cls.get("rank", "?")
             class_name = cls.get("class", "unknown")
@@ -79,7 +80,7 @@ def format_classification_results(metadata: dict) -> str:
             display_name = class_name.split(";")[-1] if ";" in class_name else class_name
             lines.append(f"  {rank}. {display_name} ({score_percent})")
     else:
-        lines.append("🏷️ *Classifications:* No classification data")
+        lines.append("*Clasificaciones:* No hay datos de clasificación")
     
     return "\n".join(lines)
 
@@ -105,6 +106,8 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     try:
+        created_at_local = timezone.localtime(latest.created_at)
+
         # Prepare media group with original and processed images
         media_group = []
         
@@ -113,7 +116,7 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             original_bytes = f.read()
         media_group.append(InputMediaPhoto(
             media=original_bytes,
-            caption=f"📷 Original image uploaded at {latest.created_at.strftime('%Y-%m-%d %H:%M')}"
+            caption=f"Imagen original cargada el {created_at_local.strftime('%d-%m-%Y %H:%M')}"
         ))
         
         # Processed image with detections (if available)
@@ -122,7 +125,7 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
                 processed_bytes = f.read()
             media_group.append(InputMediaPhoto(
                 media=processed_bytes,
-                caption="🎯 Processed image with detections"
+                caption="Imagen procesada con detecciones"
             ))
         
         # Send media group
@@ -132,7 +135,7 @@ async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
             # Just send original if no processed image
             await update.message.reply_photo(
                 photo=original_bytes,
-                caption=f"📷 Image uploaded at {latest.created_at.strftime('%Y-%m-%d %H:%M')}"
+                caption=f"Imagen cargada el {created_at_local.strftime('%d-%m-%Y %H:%M')}"
             )
         
         # Send classification results as text

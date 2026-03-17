@@ -1,7 +1,8 @@
 import os
 import logging
 from asgiref.sync import async_to_sync
-from telegram import Bot, InputMediaPhoto
+from django.utils import timezone
+from telegram import Bot, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram_bot.models import TelegramUser
 from telegram_bot.bot import format_classification_results
@@ -25,8 +26,9 @@ async def _broadcast_results(
         try:
             # Re-crear objetos multimedia para cada envío
             media_group = []
+            created_at_local = timezone.localtime(created_at)
             caption = (
-                f"📷 Nueva imagen capturada\n🕐 {created_at.strftime('%Y-%m-%d %H:%M')}"
+                f"Nueva imagen capturada\n{created_at_local.strftime('%d-%m-%Y %H:%M')}"
             )
 
             # Imagen original
@@ -44,14 +46,22 @@ async def _broadcast_results(
                     chat_id=chat_id, photo=original_bytes, caption=caption
                 )
 
-            # Agregar razón del filtro al reporte
+            # Agregar pregunta de validación
             full_report = text_report
-            if filter_reason:
-                full_report += f"\n\n🧠 *Filtro:* {filter_reason}"
+            full_report += "\n\n*¿La clasificación es correcta?*"
 
-            # Enviar reporte de texto
+            # Crear botones inline
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("SI", callback_data="classification_correct_yes"),
+                    InlineKeyboardButton("NO", callback_data="classification_correct_no"),
+                ]
+            ])
+
+            # Enviar reporte de texto con botones
             await bot.send_message(
-                chat_id=chat_id, text=full_report, parse_mode=ParseMode.MARKDOWN
+                chat_id=chat_id, text=full_report, parse_mode=ParseMode.MARKDOWN,
+                reply_markup=keyboard
             )
 
         except Exception as e:
