@@ -5,8 +5,8 @@ import logging
 from typing import Optional
 from django.utils import timezone
 
-from telegram import Update, InputFile, InputMediaPhoto
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import Update, InputFile, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 from telegram.ext import MessageHandler, filters
 from asgiref.sync import sync_to_async
 
@@ -85,6 +85,104 @@ def format_classification_results(metadata: dict) -> str:
     return "\n".join(lines)
 
 
+async def handle_classification_feedback(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle SI/NO feedback buttons for classification correctness."""
+    query = update.callback_query
+    if not query or not query.data:
+        return
+
+    await query.answer()
+
+    data = query.data
+    if ":" not in data:
+        return
+
+    action, image_id_str = data.split(":", 1)
+    if not image_id_str.isdigit():
+        return
+
+    image_id = int(image_id_str)
+
+    image = await sync_to_async(lambda: MyImage.objects.filter(id=image_id).first())()
+    if not image:
+        await query.message.reply_text("No se encontró la imagen asociada a esta respuesta.")
+        return
+
+    user = update.effective_user
+    username = user.username if user else None
+    user_id = user.id if user else None
+
+    if action == "classification_correct_yes":
+        logger.info(
+            "Feedback clasificación=SI | image_id=%s | user_id=%s | username=%s",
+            image_id,
+            user_id,
+            username,
+        )
+        await query.message.reply_text("Gracias por confirmar la clasificación.")
+        return
+
+    if action == "classification_correct_no":
+        logger.info(
+            "Feedback clasificación=NO | image_id=%s | user_id=%s | username=%s",
+            image_id,
+            user_id,
+            username,
+        )
+
+        buttons = [
+            [InlineKeyboardButton("Opcion-1", callback_data=f"classification_option:{image_id}:1")],
+            [InlineKeyboardButton("Opcion-2", callback_data=f"classification_option:{image_id}:2")],
+        ]
+        keyboard = InlineKeyboardMarkup(buttons)
+
+        await query.message.reply_text(
+            "Selecciona una opción:",
+            reply_markup=keyboard,
+        )
+
+
+async def handle_classification_selection(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle generic option selection after NO feedback."""
+    query = update.callback_query
+    if not query or not query.data:
+        return
+
+    await query.answer()
+
+    parts = query.data.split(":")
+    if len(parts) != 3:
+        return
+
+    _, image_id_str, option_str = parts
+    if not image_id_str.isdigit() or not option_str.isdigit():
+        return
+
+    image = await sync_to_async(lambda: MyImage.objects.filter(id=int(image_id_str)).first())()
+    if not image:
+        await query.message.reply_text("No se encontró la imagen asociada a esta selección.")
+        return
+
+    if option_str not in {"1", "2"}:
+        await query.message.reply_text("La opción seleccionada no es válida.")
+        return
+
+    selected_option = f"Opcion-{option_str}"
+    user = update.effective_user
+    username = user.username if user else None
+    user_id = user.id if user else None
+
+    logger.info(
+        "Feedback selección de opción | image_id=%s | option=%s | user_id=%s | username=%s",
+        image.id,
+        selected_option,
+        user_id,
+        username,
+    )
+
+    await query.message.reply_text(f"Gracias. Seleccionaste: {selected_option}")
+
+
 async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send the most recently uploaded image with analysis results.
 
@@ -160,6 +258,8 @@ def create_application(token: Optional[str] = None):
     app = ApplicationBuilder().token(token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("last", last))
+    app.add_handler(CallbackQueryHandler(handle_classification_feedback, pattern=r"^classification_correct_(yes|no):\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_classification_selection, pattern=r"^classification_option:\d+:[12]$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     return app
 

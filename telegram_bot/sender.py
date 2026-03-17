@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _broadcast_results(
-    chat_ids, original_bytes, processed_bytes, text_report, created_at,
+    chat_ids, original_bytes, processed_bytes, text_report, created_at, image_id,
     filter_reason="",
 ):
     """Función asíncrona para enviar medios y texto a todos los usuarios."""
@@ -53,8 +53,8 @@ async def _broadcast_results(
             # Crear botones inline
             keyboard = InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton("SI", callback_data="classification_correct_yes"),
-                    InlineKeyboardButton("NO", callback_data="classification_correct_no"),
+                    InlineKeyboardButton("SI", callback_data=f"classification_correct_yes:{image_id}"),
+                    InlineKeyboardButton("NO", callback_data=f"classification_correct_no:{image_id}"),
                 ]
             ])
 
@@ -103,7 +103,7 @@ def send_telegram_notification(instance, filter_reason=""):
         # 4. Ejecutar envío asíncrono desde contexto síncrono
         async_to_sync(_broadcast_results)(
             chat_ids, original_bytes, processed_bytes, text_report,
-            instance.created_at, filter_reason=filter_reason,
+            instance.created_at, instance.id, filter_reason=filter_reason,
         )
         logger.info(f"Sent Telegram notification to {len(chat_ids)} users.")
 
