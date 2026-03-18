@@ -14,6 +14,7 @@ def home(request):
     image_entries = []
     for img in last_items:
         md = img.metadata or {}
+        db_top_class = (img.top_classification or '').strip()
         
         # 1. Extraer Detecciones (igual que en bot.py)
         predictions = md.get('predictions', {})
@@ -32,17 +33,29 @@ def home(request):
             class_name = cls.get("class", "unknown")
             # Limpiar nombre (quitar taxonomía larga si existe)
             display_name = class_name.split(";")[-1] if ";" in class_name else class_name
+            rank = cls.get('rank')
             classifications.append({
-                'rank': cls.get('rank'),
+                'rank': rank,
                 'name': display_name,
-                'score': cls.get('score_percent', '0%')
+                'score': cls.get('score_percent', '0%'),
+                'is_model_top': rank == 1,
             })
+
+        # Top clasificación a mostrar: preferir columna dedicada y luego fallback
+        if db_top_class:
+            top_classification = db_top_class
+        elif classifications:
+            top_classification = classifications[0]['name']
+        else:
+            top_classification = 'N/A'
 
         image_entries.append({
             'image': img,
             'detections': detections,
             'classifications': classifications,
             'created_at': img.created_at,
+            'top_classification': top_classification,
+            'feedback_edited_by_user': img.feedback_edited_by_user,
         })
 
     return render(request, 'home.html', {
