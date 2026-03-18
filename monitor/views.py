@@ -8,8 +8,26 @@ from monitor.service import process_image
 
 # Create your views here.
 def home(request):
-    # Show only 4 most recent images
-    last_items = MyImage.objects.order_by('-created_at')[:4]
+    selected_top_classification = request.GET.get('top_classification', '').strip()
+
+    # Opciones de filtro: clasificaciones top distintas existentes en DB
+    available_top_classifications = list(
+        MyImage.objects
+        .exclude(top_classification__isnull=True)
+        .exclude(top_classification='')
+        .values_list('top_classification', flat=True)
+        .distinct()
+        .order_by('top_classification')
+    )
+
+    # Base queryset
+    images_qs = MyImage.objects.order_by('-created_at')
+
+    # Filtro por clasificación top (barato: columna dedicada)
+    if selected_top_classification:
+        images_qs = images_qs.filter(top_classification__iexact=selected_top_classification)
+
+    last_items = images_qs
     
     image_entries = []
     for img in last_items:
@@ -62,6 +80,8 @@ def home(request):
         'title': 'Sistema de vigilancia distribuido',
         'image_pairs': last_items,
         'image_entries': image_entries,
+        'available_top_classifications': available_top_classifications,
+        'selected_top_classification': selected_top_classification,
     })
 
 def upload(request):

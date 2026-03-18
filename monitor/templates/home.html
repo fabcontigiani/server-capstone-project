@@ -11,6 +11,22 @@
 <body>
     <h1>{{ title }}</h1>
 
+    <form method="get" class="filter-bar">
+        <label for="top_classification">Filtrar por clasificación top:</label>
+        <select id="top_classification" name="top_classification">
+            <option value="">Todas</option>
+            {% for cls in available_top_classifications %}
+                <option value="{{ cls }}" {% if selected_top_classification == cls %}selected{% endif %}>
+                    {{ cls }}
+                </option>
+            {% endfor %}
+        </select>
+        <button type="submit">Aplicar</button>
+        {% if selected_top_classification %}
+            <a href="{% url 'home' %}" class="clear-filter">Limpiar</a>
+        {% endif %}
+    </form>
+
     <div class="dashboard-grid">
         {% for entry in image_entries %}
         <div class="event-card">
@@ -76,7 +92,12 @@
                     </div>
                 </div>
             </div> 
-        </div> {% endfor %}
+        </div>
+        {% empty %}
+        <div class="event-card">
+            <div style="color:#94a3b8;">No hay imágenes para el filtro seleccionado.</div>
+        </div>
+        {% endfor %}
     </div>
 </body>
 </html>
