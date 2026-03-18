@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from datetime import date
 
 from monitor.forms import MyImageForm
 from monitor.models import MyImage
@@ -9,6 +10,7 @@ from monitor.service import process_image
 # Create your views here.
 def home(request):
     selected_top_classification = request.GET.get('top_classification', '').strip()
+    selected_date_iso = request.GET.get('date', '').strip()
 
     # Opciones de filtro: clasificaciones top distintas existentes en DB
     available_top_classifications = list(
@@ -26,6 +28,15 @@ def home(request):
     # Filtro por clasificación top (barato: columna dedicada)
     if selected_top_classification:
         images_qs = images_qs.filter(top_classification__iexact=selected_top_classification)
+
+    # Filtro por día (input date en formato YYYY-MM-DD)
+    if selected_date_iso:
+        try:
+            parsed_date = date.fromisoformat(selected_date_iso)
+            images_qs = images_qs.filter(created_at__date=parsed_date)
+        except ValueError:
+            # Si llega un valor inválido, ignorar el filtro para no romper la vista
+            selected_date_iso = ''
 
     last_items = images_qs
     
@@ -82,6 +93,7 @@ def home(request):
         'image_entries': image_entries,
         'available_top_classifications': available_top_classifications,
         'selected_top_classification': selected_top_classification,
+        'selected_date_iso': selected_date_iso,
     })
 
 def upload(request):

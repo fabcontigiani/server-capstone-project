@@ -21,8 +21,12 @@
                 </option>
             {% endfor %}
         </select>
+
+        <label for="date">Filtrar por día:</label>
+        <input type="date" id="date" name="date" value="{{ selected_date_iso }}">
+
         <button type="submit">Aplicar</button>
-        {% if selected_top_classification %}
+        {% if selected_top_classification or selected_date_iso %}
             <a href="{% url 'home' %}" class="clear-filter">Limpiar</a>
         {% endif %}
     </form>
