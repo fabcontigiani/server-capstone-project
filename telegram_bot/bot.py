@@ -85,6 +85,27 @@ def format_classification_results(metadata: dict) -> str:
     return "\n".join(lines)
 
 
+def get_feedback_class_options(metadata: dict, top_n: int = 5) -> list[str]:
+    """Return the first N predicted class names for feedback buttons."""
+    options: list[str] = []
+
+    # Prefer precomputed top classifications
+    top_classifications = (metadata or {}).get("top_classifications", [])
+    for item in top_classifications[:top_n]:
+        class_name = item.get("class", "unknown")
+        options.append(class_name.split(";")[-1] if ";" in class_name else class_name)
+
+    # Fallback to raw predictions if needed
+    if not options:
+        predictions = (metadata or {}).get("predictions", {})
+        classifications = predictions.get("classifications", {})
+        classes = classifications.get("classes", [])
+        for class_name in classes[:top_n]:
+            options.append(class_name.split(";")[-1] if ";" in class_name else class_name)
+
+    return options
+
+
 async def handle_classification_feedback(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle SI/NO feedback buttons for classification correctness."""
     query = update.callback_query
@@ -123,6 +144,11 @@ async def handle_classification_feedback(update: Update, _context: ContextTypes.
         return
 
     if action == "classification_correct_no":
+        options = get_feedback_class_options(image.metadata or {}, top_n=5)
+        if not options:
+            await query.message.reply_text("No hay clasificaciones disponibles para seleccionar.")
+            return
+
         logger.info(
             "Feedback clasificación=NO | image_id=%s | user_id=%s | username=%s",
             image_id,
@@ -131,13 +157,13 @@ async def handle_classification_feedback(update: Update, _context: ContextTypes.
         )
 
         buttons = [
-            [InlineKeyboardButton("Opcion-1", callback_data=f"classification_option:{image_id}:1")],
-            [InlineKeyboardButton("Opcion-2", callback_data=f"classification_option:{image_id}:2")],
+            [InlineKeyboardButton(f"{idx + 1}. {class_name}", callback_data=f"classification_option:{image_id}:{idx}")]
+            for idx, class_name in enumerate(options)
         ]
         keyboard = InlineKeyboardMarkup(buttons)
 
         await query.message.reply_text(
-            "Selecciona una opción:",
+            "Selecciona la clasificación correcta:",
             reply_markup=keyboard,
         )
 
@@ -163,11 +189,13 @@ async def handle_classification_selection(update: Update, _context: ContextTypes
         await query.message.reply_text("No se encontró la imagen asociada a esta selección.")
         return
 
-    if option_str not in {"1", "2"}:
+    options = get_feedback_class_options(image.metadata or {}, top_n=5)
+    option_idx = int(option_str)
+    if option_idx < 0 or option_idx >= len(options):
         await query.message.reply_text("La opción seleccionada no es válida.")
         return
 
-    selected_option = f"Opcion-{option_str}"
+    selected_option = options[option_idx]
     user = update.effective_user
     username = user.username if user else None
     user_id = user.id if user else None
@@ -259,7 +287,7 @@ def create_application(token: Optional[str] = None):
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("last", last))
     app.add_handler(CallbackQueryHandler(handle_classification_feedback, pattern=r"^classification_correct_(yes|no):\d+$"))
-    app.add_handler(CallbackQueryHandler(handle_classification_selection, pattern=r"^classification_option:\d+:[12]$"))
+    app.add_handler(CallbackQueryHandler(handle_classification_selection, pattern=r"^classification_option:\d+:\d+$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     return app
 
