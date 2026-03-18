@@ -140,7 +140,6 @@ async def handle_classification_feedback(update: Update, _context: ContextTypes.
             user_id,
             username,
         )
-        await query.message.reply_text("Gracias por confirmar la clasificación.")
         return
 
     if action == "classification_correct_no":
@@ -207,6 +206,11 @@ async def handle_classification_selection(update: Update, _context: ContextTypes
         user_id,
         username,
     )
+
+    # Persistir corrección de usuario en columnas dedicadas
+    image.top_classification = selected_option
+    image.feedback_edited_by_user = True
+    await sync_to_async(image.save)(update_fields=["top_classification", "feedback_edited_by_user"])
 
     await query.message.reply_text(f"Gracias. Seleccionaste: {selected_option}")
 
