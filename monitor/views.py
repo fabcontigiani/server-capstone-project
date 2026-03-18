@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.core.paginator import Paginator
 from datetime import date
 
 from monitor.forms import MyImageForm
@@ -11,6 +12,7 @@ from monitor.service import process_image
 def home(request):
     selected_top_classification = request.GET.get('top_classification', '').strip()
     selected_date_iso = request.GET.get('date', '').strip()
+    page_number = request.GET.get('page', '1')
 
     # Opciones de filtro: clasificaciones top distintas existentes en DB
     available_top_classifications = list(
@@ -38,7 +40,15 @@ def home(request):
             # Si llega un valor inválido, ignorar el filtro para no romper la vista
             selected_date_iso = ''
 
-    last_items = images_qs
+    # Paginación (evita cargar miles de imágenes en una sola respuesta)
+    paginator = Paginator(images_qs, 12)
+    page_obj = paginator.get_page(page_number)
+    last_items = page_obj.object_list
+
+    # Querystring para links de paginación conservando filtros activos
+    pagination_params = request.GET.copy()
+    pagination_params.pop('page', None)
+    pagination_query = pagination_params.urlencode()
     
     image_entries = []
     for img in last_items:
@@ -94,6 +104,8 @@ def home(request):
         'available_top_classifications': available_top_classifications,
         'selected_top_classification': selected_top_classification,
         'selected_date_iso': selected_date_iso,
+        'page_obj': page_obj,
+        'pagination_query': pagination_query,
     })
 
 def upload(request):

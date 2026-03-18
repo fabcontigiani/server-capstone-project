@@ -103,5 +103,30 @@
         </div>
         {% endfor %}
     </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Paginación de imágenes">
+        {% if page_obj.has_previous %}
+            <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page=1">« Primera</a>
+            <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">‹ Anterior</a>
+        {% else %}
+            <span class="page-link disabled">« Primera</span>
+            <span class="page-link disabled">‹ Anterior</span>
+        {% endif %}
+
+        <span class="page-status">
+            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            ({{ page_obj.paginator.count }} imágenes)
+        </span>
+
+        {% if page_obj.has_next %}
+            <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente ›</a>
+            <a class="page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.paginator.num_pages }}">Última »</a>
+        {% else %}
+            <span class="page-link disabled">Siguiente ›</span>
+            <span class="page-link disabled">Última »</span>
+        {% endif %}
+    </nav>
+    {% endif %}
 </body>
 </html>

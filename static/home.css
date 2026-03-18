@@ -217,6 +217,42 @@ h1 {
 
 .score-high { color: #4ade80; font-weight: bold; }
 
+.pagination {
+    max-width: 1400px;
+    margin: 14px auto 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.page-link {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 6px 10px;
+    text-decoration: none;
+    font-size: 0.82rem;
+}
+
+.page-link:hover {
+    border-color: #475569;
+    color: #f8fafc;
+}
+
+.page-link.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.page-status {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    padding: 0 6px;
+}
+
 /* Ajuste para móviles: 1 sola columna si la pantalla es pequeña */
 @media (max-width: 1000px) {
     .dashboard-grid { grid-template-columns: 1fr; }
