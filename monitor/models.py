@@ -8,6 +8,8 @@ class MyImage(models.Model):
 
     processed_image = models.ImageField(upload_to='processed_images/', null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
+    top_classification = models.CharField(max_length=255, null=True, blank=True)
+    feedback_edited_by_user = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['created_at']

@@ -79,6 +79,12 @@ def process_image(instance: MyImage) -> None:
 
     # Extract classification results
     top_classifications = format_classifications(prediction)
+    top_classification = None
+    if top_classifications:
+        raw_top_class = top_classifications[0].get("class", "")
+        top_classification = (
+            raw_top_class.split(";")[-1].strip() if raw_top_class else None
+        )
 
     # Get the annotated image path from the prediction response
     annotated_filepath = prediction.get("annotated_filepath")
@@ -97,7 +103,16 @@ def process_image(instance: MyImage) -> None:
         "top_classifications": top_classifications,
         "detections_count": len(prediction.get("detections", [])),
     }
-    instance.save(update_fields=["processed_image", "metadata"])
+    instance.top_classification = top_classification
+    instance.feedback_edited_by_user = False
+    instance.save(
+        update_fields=[
+            "processed_image",
+            "metadata",
+            "top_classification",
+            "feedback_edited_by_user",
+        ]
+    )
 
     logger.info(
         f"Processed image {instance.image.path}: {len(prediction.get('detections', []))} detections"
