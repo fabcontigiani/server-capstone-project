@@ -114,6 +114,12 @@ async def handle_classification_feedback(update: Update, _context: ContextTypes.
 
     await query.answer()
 
+    # Eliminar teclado SI/NO una vez respondido para evitar re-selección
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        logger.debug("No se pudo remover teclado de feedback inicial", exc_info=True)
+
     data = query.data
     if ":" not in data:
         return
@@ -174,6 +180,12 @@ async def handle_classification_selection(update: Update, _context: ContextTypes
         return
 
     await query.answer()
+
+    # Eliminar teclado de opciones una vez seleccionada una clase
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        logger.debug("No se pudo remover teclado de opciones", exc_info=True)
 
     parts = query.data.split(":")
     if len(parts) != 3:
