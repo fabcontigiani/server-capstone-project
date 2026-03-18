@@ -106,7 +106,31 @@ def get_feedback_class_options(metadata: dict, top_n: int = 5) -> list[str]:
     return options
 
 
-async def handle_classification_feedback(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+def build_feedback_multi_select_keyboard(
+    image_id: int,
+    options: list[str],
+    selected_indexes: set[int],
+) -> InlineKeyboardMarkup:
+    """Build inline keyboard to toggle multiple classes and confirm."""
+    buttons = []
+    for idx, class_name in enumerate(options):
+        marker = "✅" if idx in selected_indexes else "☐"
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    f"{marker} {idx + 1}. {class_name}",
+                    callback_data=f"classification_option:{image_id}:{idx}",
+                )
+            ]
+        )
+
+    buttons.append(
+        [InlineKeyboardButton("Confirmar selección", callback_data=f"classification_confirm:{image_id}")]
+    )
+    return InlineKeyboardMarkup(buttons)
+
+
+async def handle_classification_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle SI/NO feedback buttons for classification correctness."""
     query = update.callback_query
     if not query or not query.data:
@@ -161,31 +185,29 @@ async def handle_classification_feedback(update: Update, _context: ContextTypes.
             username,
         )
 
-        buttons = [
-            [InlineKeyboardButton(f"{idx + 1}. {class_name}", callback_data=f"classification_option:{image_id}:{idx}")]
-            for idx, class_name in enumerate(options)
-        ]
-        keyboard = InlineKeyboardMarkup(buttons)
+        # Estado temporal por usuario + imagen para selección múltiple
+        feedback_state = context.user_data.setdefault("classification_feedback_state", {})
+        feedback_state[str(image_id)] = {"selected": []}
+
+        keyboard = build_feedback_multi_select_keyboard(
+            image_id=image_id,
+            options=options,
+            selected_indexes=set(),
+        )
 
         await query.message.reply_text(
-            "Selecciona la clasificación correcta:",
+            "Selecciona una o más clasificaciones y luego confirma:",
             reply_markup=keyboard,
         )
 
 
-async def handle_classification_selection(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle generic option selection after NO feedback."""
+async def handle_classification_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Toggle selected classes after NO feedback (multi-select)."""
     query = update.callback_query
     if not query or not query.data:
         return
 
     await query.answer()
-
-    # Eliminar teclado de opciones una vez seleccionada una clase
-    try:
-        await query.edit_message_reply_markup(reply_markup=None)
-    except Exception:
-        logger.debug("No se pudo remover teclado de opciones", exc_info=True)
 
     parts = query.data.split(":")
     if len(parts) != 3:
@@ -206,25 +228,100 @@ async def handle_classification_selection(update: Update, _context: ContextTypes
         await query.message.reply_text("La opción seleccionada no es válida.")
         return
 
-    selected_option = options[option_idx]
+    feedback_state = context.user_data.setdefault("classification_feedback_state", {})
+    image_state = feedback_state.setdefault(str(image.id), {"selected": []})
+    selected_indexes = set(image_state.get("selected", []))
+
+    # Toggle de selección
+    if option_idx in selected_indexes:
+        selected_indexes.remove(option_idx)
+    else:
+        selected_indexes.add(option_idx)
+
+    image_state["selected"] = sorted(selected_indexes)
+
+    keyboard = build_feedback_multi_select_keyboard(
+        image_id=image.id,
+        options=options,
+        selected_indexes=selected_indexes,
+    )
+
+    try:
+        await query.edit_message_reply_markup(reply_markup=keyboard)
+    except Exception:
+        logger.debug("No se pudo actualizar teclado de selección múltiple", exc_info=True)
+
+
+async def handle_classification_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Confirm selected classes and persist reclassification feedback."""
+    query = update.callback_query
+    if not query or not query.data:
+        return
+
+    await query.answer()
+
+    parts = query.data.split(":")
+    if len(parts) != 2:
+        return
+
+    _, image_id_str = parts
+    if not image_id_str.isdigit():
+        return
+
+    image = await sync_to_async(lambda: MyImage.objects.filter(id=int(image_id_str)).first())()
+    if not image:
+        await query.message.reply_text("No se encontró la imagen asociada a esta selección.")
+        return
+
+    options = get_feedback_class_options(image.metadata or {}, top_n=5)
+    feedback_state = context.user_data.setdefault("classification_feedback_state", {})
+    image_state = feedback_state.get(str(image.id), {"selected": []})
+    selected_indexes = image_state.get("selected", [])
+
+    if not selected_indexes:
+        await query.answer("Selecciona al menos una opción antes de confirmar.", show_alert=True)
+        return
+
+    selected_classes = [
+        options[idx] for idx in selected_indexes if 0 <= idx < len(options)
+    ]
+    if not selected_classes:
+        await query.answer("No hay selecciones válidas para confirmar.", show_alert=True)
+        return
+
     user = update.effective_user
     username = user.username if user else None
     user_id = user.id if user else None
 
     logger.info(
-        "Feedback selección de opción | image_id=%s | option=%s | user_id=%s | username=%s",
+        "Feedback confirmación múltiple | image_id=%s | options=%s | user_id=%s | username=%s",
         image.id,
-        selected_option,
+        selected_classes,
         user_id,
         username,
     )
 
     # Persistir corrección de usuario en columnas dedicadas
-    image.top_classification = selected_option
+    image.top_classification = selected_classes[0]
     image.feedback_edited_by_user = True
-    await sync_to_async(image.save)(update_fields=["top_classification", "feedback_edited_by_user"])
+    metadata = image.metadata or {}
+    metadata["user_selected_classifications"] = selected_classes
+    image.metadata = metadata
+    await sync_to_async(image.save)(
+        update_fields=["top_classification", "feedback_edited_by_user", "metadata"]
+    )
 
-    await query.message.reply_text(f"Gracias. Seleccionaste: {selected_option}")
+    # Remover teclado para evitar re-confirmaciones
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        logger.debug("No se pudo remover teclado tras confirmar", exc_info=True)
+
+    feedback_state.pop(str(image.id), None)
+
+    await query.message.reply_text(
+        f"Gracias. Seleccionaste: {', '.join(selected_classes)}"
+    )
 
 
 async def last(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -304,6 +401,7 @@ def create_application(token: Optional[str] = None):
     app.add_handler(CommandHandler("last", last))
     app.add_handler(CallbackQueryHandler(handle_classification_feedback, pattern=r"^classification_correct_(yes|no):\d+$"))
     app.add_handler(CallbackQueryHandler(handle_classification_selection, pattern=r"^classification_option:\d+:\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_classification_confirmation, pattern=r"^classification_confirm:\d+$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     return app
 
